@@ -8,10 +8,11 @@ import components.simplereader.SimpleReader;
 import components.simplereader.SimpleReader1L;
 import components.simplewriter.SimpleWriter;
 import components.simplewriter.SimpleWriter1L;
+import components.utilities.Reporter;
 
 /**
- * A simple program to generate a glossary based on an input file of
- * definitions.
+ * A simple program to generate a glossary based on an input file containing
+ * terms and definitions.
  *
  * @author Caleb Parrott
  *
@@ -29,13 +30,20 @@ public final class Main {
      */
     private static Map<String, String> glossary = new Map1L<>();
 
-    //---------- THE FOLLOWING METHODS ARE FOR TESTING ONLY ----------
-    //----------  USED ONLY FOR ACCESSING THE GLOSSARY MAP  ----------
+    //---------- TESTING METHODS -----------
+
+    /*
+     * Methods for reading and clearing the glossary map due to the map being
+     * private. Use for JUnit test cases ONLY. These methods should not be
+     * called in main.
+     */
 
     /**
-     * Returns the glossary map. Used for testing only.
+     * Returns the glossary map. Used for testing only. No test cases for this
+     * method.
      *
      * @return The glossary map
+     * @ensures /result = glossary
      */
     public static Map<String, String> readGlossaryMap() {
         return glossary;
@@ -44,6 +52,8 @@ public final class Main {
     /**
      * Clears the glossary map. Used for testing only. No test cases for this
      * method.
+     *
+     * @ensures glossary.size() = 0
      */
     public static void clearGlossaryMap() {
         glossary.clear();
@@ -57,15 +67,29 @@ public final class Main {
      *
      * @param filename
      *            The file to read the inputs from
+     * @requires filename is not null or empty
+     * @ensures glossary.size() > 0 and glossary keys are terms and values are
+     *          associated definitions
      */
     public static void generateGlossaryMap(String filename) {
+        assert filename != null : "Violation of: filename is not null";
+        assert !filename.equals("") : "Violation of: filename is not empty";
+
         SimpleReader in = new SimpleReader1L(filename);
         boolean isAtEOS = false;
 
+        /*
+         * Reads the input file unil the end of stream. The first line is the
+         * term.
+         */
         while (!in.atEOS()) {
             String termLine = in.nextLine();
             StringBuilder defLine = new StringBuilder();
 
+            /*
+             * Reads the definition line by line until an empty line is
+             * encountered. The empty line indicates the end of the definition.
+             */
             String line = in.nextLine();
             while (!line.equals("") && !isAtEOS) {
                 defLine.append(line).append(" ");
@@ -75,11 +99,25 @@ public final class Main {
                     line = in.nextLine();
                 }
             }
+            /*
+             * The definition is trimmed to remove any leading or trailing
+             * spaces and converted to a string, and then is added to the
+             * glossary map.
+             */
 
             String finalDef = defLine.toString().trim();
             glossary.add(termLine, finalDef);
         }
 
+        /*
+         * If glossary map is empty, print an error message and exit the
+         * program.
+         */
+        if (glossary.size() == 0) {
+            Reporter.fatalErrorToConsole("EMPTY FILE: No terms found in the input file.");
+        }
+
+        //close the input stream
         in.close();
     }
 
@@ -94,10 +132,22 @@ public final class Main {
      *            The location of the folder to save the file in
      * @param consoleOut
      *            The output stream
-     *
+     * @updates consoleOut.contents
+     * @requires term is not null or empty, definition is not null or empty,
+     *           folderLocation is not null or empty, and ConsoleOut.is_open.
+     * @ensures output file is created in the specified folder location with the
+     *          associated term and definition
      */
     public static void generateTermPage(String term, String definition,
             String folderLocation, SimpleWriter consoleOut) {
+
+        assert term != null : "Violation of: term is not null";
+        assert !term.equals("") : "Violation of: term is not empty";
+        assert definition != null : "Violation of: definition is not null";
+        assert !definition.equals("") : "Violation of: definition is not empty";
+        assert folderLocation != null : "Violation of: folderLocation is not null";
+        assert !folderLocation.equals("") : "Violation of: folderLocation is not empty";
+
         String filename = term + ".html";
         SimpleWriter out = new SimpleWriter1L(folderLocation + "/" + filename);
 
@@ -148,17 +198,33 @@ public final class Main {
      *
      * @param definition
      *            The definition to check
-     * @return Thw definition with links
+     * @return The definition with links where necessary
+     * @requires definition is not null or empty
+     * @ensures definition word that match glossary terms are replaced with
+     *          links
      */
     public static String checkDefinitionLinks(String definition) {
+
+        assert definition != null : "Violation of: definition is not null";
+        assert !definition.equals("") : "Violation of: definition is not empty";
+
         StringBuilder definitionToPrint = new StringBuilder();
 
+        /*
+         * Splits the definition into words and iterates over each word. Removes
+         * all punctuation and makes the word lowercase for the case of
+         * searching the glossary map.
+         */
         String[] words = definition.split(" ");
         for (String word : words) {
             String wordWithoutPunctuation = word.replaceAll("\\p{Punct}", "")
                     .toLowerCase();
 
-            // Check if the word is in the glossary
+            /*
+             * Cheks if the word is in the glossary map. If the first part of
+             * the word exists as a key in the map, that term is linked in the
+             * definition.
+             */
             boolean isFound = false;
             for (Map.Pair<String, String> pair : glossary) {
                 String key = pair.key().toLowerCase();
@@ -182,16 +248,30 @@ public final class Main {
      *
      * @param folderLocation
      *            The location of the folder to save the file in
+     * @requires folderLocation is not null or empty
+     * @ensures index.html is created in the specified folder
      */
     public static void generateIndexPage(String folderLocation) {
         SimpleWriter out = new SimpleWriter1L(folderLocation + "/index.html");
 
+        assert folderLocation != null : "Violation of: folderLocation is not null";
+        assert !folderLocation.equals("") : "Violation of: folderLocation is not empty";
+
+        /*
+         * Prints the header for the index page. The header includes the title.
+         */
         out.println("<html>");
         out.println("<head>");
         out.println("<title>Glossary</title>");
 
+        /*
+         * Writes the CSS for the HTML file.
+         */
         writeCSS(out);
 
+        /*
+         * Prints the header of the index page.
+         */
         out.println("</head>");
         out.println("<body>");
         out.println("<h1><b>Glossary Index</b></h1>");
@@ -223,6 +303,9 @@ public final class Main {
             out.println("<a href=\"" + term + ".html\"><li>" + term + "</li></a>");
         }
 
+        /*
+         * Prints the end of the HTML file.
+         */
         out.println("</ul>");
         out.println("</div>");
         out.println("</body>");
@@ -235,9 +318,16 @@ public final class Main {
      *
      * @param out
      *            The output stream
+     * @updates out.contents
+     * @requires out.is_open
+     * @ensures out.contents = #out.contents * [CSS script]
      */
     public static void writeCSS(SimpleWriter out) {
 
+        /*
+         * "All the CSS for the HTML files is written here. The CSS is all
+         * grouped in one method for the sake of consitency across pages.
+         */
         out.println("<style>");
         out.println("body {");
         out.println("    background-color: #f0f0f0;");
@@ -322,18 +412,31 @@ public final class Main {
      *            The location of the folder to save the files in
      * @param consoleOut
      *            The output stream
+     * @requires folderLocation is not null or empty, and consoleOut.is_open
+     * @updates consoleOut.contents
+     * @ensures index.html and term files are created in the specified folder
      */
     public static void generateGlossaryFiles(String folderLocation,
             SimpleWriter consoleOut) {
 
+        assert folderLocation != null : "Violation of: folderLocation is not null";
+        assert !folderLocation.equals("") : "Violation of: folderLocation is not empty";
+
         consoleOut.print("Generating index.html...");
 
+        /*
+         * Generates the index page. The index page is the main page of the
+         * glossary and contains links to all the terms.
+         */
         generateIndexPage(folderLocation);
 
         consoleOut.println("done.");
 
         consoleOut.println("Generating glossary files...");
 
+        /*
+         * Iterates over the glossary map and generates a file for each term.
+         */
         for (Map.Pair<String, String> pair : glossary) {
             String term = pair.key();
             String definition = pair.value();
@@ -354,6 +457,10 @@ public final class Main {
         SimpleReader in = new SimpleReader1L();
         SimpleWriter out = new SimpleWriter1L();
 
+        /*
+         * Prompt the user for the input file and the folder location to save
+         * the files in.
+         */
         out.print("Enter the name of the input file: ");
         String inputFile = in.nextLine();
 
@@ -362,6 +469,11 @@ public final class Main {
 
         out.println("Generating files...");
 
+        /*
+         * Generates the glossary map for the terms and definitions. The
+         * definition is the key and the term is the value. Using that glosssry
+         * map the HTML pages are written.
+         */
         generateGlossaryMap(inputFile);
         generateGlossaryFiles(folderLocation, out);
 
