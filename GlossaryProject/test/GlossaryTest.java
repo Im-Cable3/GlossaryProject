@@ -16,6 +16,8 @@ import components.utilities.Reporter;
 
 /**
  * JUnit test for glossary.
+ *
+ * @author Caleb Parrott
  */
 public class GlossaryTest {
 
